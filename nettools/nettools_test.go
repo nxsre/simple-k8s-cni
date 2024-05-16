@@ -6,8 +6,8 @@ import (
 
 	"testing"
 
-	"testcni/ipam"
-	"testcni/utils"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	"github.com/nxsre/simple-k8s-cni/utils"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/stretchr/testify/assert"

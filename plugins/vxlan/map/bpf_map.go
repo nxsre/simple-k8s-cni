@@ -1,7 +1,7 @@
 package bpf_map
 
 import (
-	"testcni/utils"
+	"github.com/nxsre/simple-k8s-cni/utils"
 
 	"github.com/cilium/ebpf"
 )

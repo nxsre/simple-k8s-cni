@@ -3,11 +3,11 @@ package xvlan_bash
 import (
 	"errors"
 	"fmt"
-	"testcni/cni"
-	"testcni/ipam"
-	"testcni/nettools"
-	"testcni/skel"
-	"testcni/utils"
+	"github.com/nxsre/simple-k8s-cni/cni"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	"github.com/nxsre/simple-k8s-cni/nettools"
+	"github.com/nxsre/simple-k8s-cni/skel"
+	"github.com/nxsre/simple-k8s-cni/utils"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"

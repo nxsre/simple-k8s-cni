@@ -1,7 +1,7 @@
 package tc
 
 import (
-	"testcni/nettools"
+	"github.com/nxsre/simple-k8s-cni/nettools"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

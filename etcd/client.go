@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nxsre/simple-k8s-cni/helper"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"io/ioutil"
 	"os"
 	"strings"
-	"testcni/helper"
-	"testcni/utils"
 	"time"
 
 	"go.etcd.io/etcd/api/v3/mvccpb"

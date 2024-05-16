@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nxsre/simple-k8s-cni/consts"
+	"github.com/nxsre/simple-k8s-cni/helper"
 	"io/ioutil"
 	"net/http"
-	"testcni/consts"
-	"testcni/helper"
 
 	v1 "k8s.io/api/core/v1"
 )

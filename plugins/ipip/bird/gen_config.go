@@ -2,10 +2,10 @@ package bird
 
 import (
 	"bytes"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"os"
 	"strings"
-	"testcni/ipam"
-	"testcni/utils"
 	"text/template"
 )
 

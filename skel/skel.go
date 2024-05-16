@@ -30,7 +30,7 @@ import (
 	"github.com/containernetworking/cni/pkg/utils"
 	"github.com/containernetworking/cni/pkg/version"
 
-	testutils "testcni/utils"
+	testutils "github.com/nxsre/simple-k8s-cni/utils"
 )
 
 // CmdArgs captures all the arguments passed in to the plugin

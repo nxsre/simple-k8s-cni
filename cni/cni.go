@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"testcni/skel"
-	"testcni/utils"
+	"github.com/nxsre/simple-k8s-cni/skel"
+	"github.com/nxsre/simple-k8s-cni/utils"
 
 	cniTypes "github.com/containernetworking/cni/pkg/types"
 	types "github.com/containernetworking/cni/pkg/types/100"

@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"encoding/json"
-	"testcni/ipam"
-	"testcni/nettools"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	"github.com/nxsre/simple-k8s-cni/nettools"
 
 	"github.com/containernetworking/cni/pkg/types"
 	current "github.com/containernetworking/cni/pkg/types/100"
@@ -38,7 +38,7 @@ type PluginConf struct {
 	Subnet string `json:"subnet"`
 }
 
-func TestMain(t *testing.T) {
+func TestMain(m *testing.M) {
 	// 测试代码执行后, 可通过执行 ./clear.sh testcni0 来清掉测试的操作,
 	// 不过注意不同节点上要把对应的其他节点 ip 改咯
 
@@ -140,7 +140,7 @@ func TestMain(t *testing.T) {
 	 *		7. 设置主机的 iptables, 让所有来自 bridgeName 的流量都能做 forward(因为 docker 可能会自己设置 iptables 不让转发的规则)
 	 */
 
-	err = nettools.CreateBridgeAndCreateVethAndSetNetworkDeviceStatusAndSetVethMaster(bridgeName, gatewayWithMaskSegment, ifName, podIP, mtu, netns)
+	err = nettools.CreateBridgeAndCreateVethAndSetNetworkDeviceStatusAndSetVethMaster(bridgeName, ifName, gatewayWithMaskSegment, podIP, mtu, netns, gatewayWithMaskSegment)
 	if err != nil {
 		fmt.Println("执行创建网桥, 创建 veth 设备, 添加默认路由等操作失败, err: ", err.Error())
 		err = ipamClient.Release().IPs(podIP)

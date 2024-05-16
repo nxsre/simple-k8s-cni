@@ -2,9 +2,9 @@ package watcher
 
 import (
 	"fmt"
+	"github.com/nxsre/simple-k8s-cni/etcd"
+	"github.com/nxsre/simple-k8s-cni/ipam"
 	"sync"
-	"testcni/etcd"
-	"testcni/ipam"
 	"testing"
 	"time"
 

@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"io/ioutil"
 	"os"
+	"time"
 )
 
-const DEFAULT_LOG_PATH = "/root/ding/go/src/simple-k8s-cni/test-cni.log"
+const DEFAULT_LOG_PATH = "test-cni.log"
 
 var CURRENT_LOG_PATH = os.Getenv("TEST_CNI_LOG_PATH")
 
@@ -59,7 +60,7 @@ func WriteLog(log ...string) {
 		logRes += " "
 	}
 	// fmt.Println(logRes)
-	_, err = write.WriteString(logRes + "\r\n")
+	_, err = write.WriteString(time.Now().Format(time.DateTime) + " " + logRes + "\r\n")
 	if err != nil {
 		// fmt.Println("失败: ", err.Error())
 	}

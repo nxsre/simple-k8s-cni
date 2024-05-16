@@ -2,11 +2,11 @@ package bird
 
 import (
 	"fmt"
+	"github.com/nxsre/simple-k8s-cni/consts"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"os"
 	"os/exec"
 	"strconv"
-	"testcni/consts"
-	"testcni/utils"
 )
 
 func StartBirdDaemon(configPath string) (int, error) {

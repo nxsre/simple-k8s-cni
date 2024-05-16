@@ -4,18 +4,20 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	current "github.com/containernetworking/cni/pkg/types/100"
+	"github.com/containernetworking/plugins/pkg/ip"
+	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/coreos/go-iptables/iptables"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	"github.com/nxsre/simple-k8s-cni/utils"
+	"github.com/vishvananda/netlink"
+	"log"
 	"net"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
-	"testcni/ipam"
-	"testcni/utils"
-
-	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/coreos/go-iptables/iptables"
-	"github.com/vishvananda/netlink"
 )
 
 func delInterfaceByName(name string) error {
@@ -309,53 +311,47 @@ func DelIPVlan(name string) error {
 	return delInterfaceByName(name)
 }
 
-func CreateBridge(brName, gw string, mtu int) (*netlink.Bridge, error) {
-	l, err := netlink.LinkByName(brName)
-	if err != nil {
-		return nil, err
-	}
-
-	br, ok := l.(*netlink.Bridge)
-	if ok && br != nil {
-		return br, nil
-	}
-
-	br = &netlink.Bridge{
+func CreateBridge(brName, brIP string, mtu int) (*netlink.Bridge, error) {
+	br := &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{
-			Name:   brName,
-			MTU:    mtu,
+			Name: brName,
+			MTU:  mtu,
+			// Let kernel use default txqueuelen; leaving it unset
+			// means 0, and a zero-length TX queue messes up FIFO
+			// traffic shapers which use TX queue length as the
+			// default packet limit
 			TxQLen: -1,
 		},
 	}
 
-	err = netlink.LinkAdd(br)
-	if err != nil {
+	err := netlink.LinkAdd(br)
+	if err != nil && (err != syscall.EEXIST) {
 		utils.WriteLog("无法创建网桥: ", brName, "err: ", err.Error())
 		return nil, err
 	}
 
 	// 这里需要通过 netlink 重新获取网桥
 	// 否则光创建的话无法从上头拿到其他属性
-	l, err = netlink.LinkByName(brName)
+	l, err := netlink.LinkByName(brName)
 	if err != nil {
 		return nil, err
 	}
 
-	br, ok = l.(*netlink.Bridge)
+	br, ok := l.(*netlink.Bridge)
 	if !ok {
 		utils.WriteLog("找到了设备, 但是该设备不是网桥")
 		return nil, fmt.Errorf("found the device %q but it's not a bridge device", brName)
 	}
 
 	// 给网桥绑定 ip 地址, 让网桥作为网关
-	ipaddr, ipnet, err := net.ParseCIDR(gw)
+	ipaddr, ipnet, err := net.ParseCIDR(brIP)
 	if err != nil {
 		utils.WriteLog("无法 parse gw 为 ipnet, err: ", err.Error())
-		return nil, fmt.Errorf("transform the gatewayIP error %q: %v", gw, err)
+		return nil, fmt.Errorf("transform the gatewayIP error %q: %v", brIP, err)
 	}
 	ipnet.IP = ipaddr
 	addr := &netlink.Addr{IPNet: ipnet}
-	if err = netlink.AddrAdd(br, addr); err != nil {
+	if err = netlink.AddrReplace(br, addr); err != nil && err != syscall.EEXIST {
 		utils.WriteLog("将 gw 添加到 bridge 失败, err: ", err.Error())
 		return nil, fmt.Errorf("can not add the gw %q to bridge %q, err: %v", addr, brName, err)
 	}
@@ -365,6 +361,7 @@ func CreateBridge(brName, gw string, mtu int) (*netlink.Bridge, error) {
 		utils.WriteLog("启动网桥失败, err: ", err.Error())
 		return nil, fmt.Errorf("set up bridge %q error, err: %v", brName, err)
 	}
+
 	return br, nil
 }
 
@@ -402,6 +399,8 @@ func CreateVethPair(ifName string, mtu int, hostName ...string) (*netlink.Veth, 
 		}
 	}
 
+	log.Println("vethPairNamevethPairName:::", vethPairName)
+
 	if vethPairName == "" {
 		return nil, nil, errors.New("create veth pair's name error")
 	}
@@ -417,17 +416,26 @@ func CreateVethPair(ifName string, mtu int, hostName ...string) (*netlink.Veth, 
 		// PeerNamespace: netlink.NsFd(int(ns.Fd())),
 	}
 
-	// 创建 veth pair
-	err := netlink.LinkAdd(veth)
+	veth1, err := netlink.LinkByName(ifName)
+	if err == nil {
+		err := netlink.LinkDel(veth1)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 
+	// 创建 veth pair
+	err = netlink.LinkAdd(veth)
 	if err != nil {
 		utils.WriteLog("创建 veth 设备失败, err: ", err.Error())
 		return nil, nil, err
 	}
 
 	// 尝试重新获取 veth 设备看是否能成功
-	veth1, err := netlink.LinkByName(ifName) // veth1 一会儿要在 pod(net ns) 里
+	veth1, err = netlink.LinkByName(ifName) // veth1 一会儿要在 pod(net ns) 里
 	if err != nil {
+		log.Println("77777777777---", err)
+
 		// 如果获取失败就尝试删掉
 		netlink.LinkDel(veth1)
 		utils.WriteLog("创建完 veth 但是获取失败, err: ", err.Error())
@@ -499,11 +507,27 @@ func setIpForDevice(name string, ip string, mode ...string) error {
 		return fmt.Errorf("failed to transform the ip %q, error : %v", ip, err)
 	}
 	ipnet.IP = ipaddr
-	err = netlink.AddrAdd(link, &netlink.Addr{IPNet: ipnet})
+	existingAddrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 	if err != nil {
-		return fmt.Errorf("can not add the ip %q to %s device %q, error: %v", ip, deviceType, name, err)
+		return fmt.Errorf("failed to get IP address for %q: %v", link.Attrs().Name, err)
+	}
+
+	if contains(existingAddrs, ipnet) {
+		return nil
+	}
+	if err := netlink.AddrReplace(link, &netlink.Addr{IPNet: ipnet}); err != nil {
+		return fmt.Errorf("failed to add IP address to %q: %v", link.Attrs().Name, err)
 	}
 	return nil
+}
+
+func contains(addrs []netlink.Addr, addr *net.IPNet) bool {
+	for _, x := range addrs {
+		if addr.IP.Equal(x.IPNet.IP) {
+			return true
+		}
+	}
+	return false
 }
 
 func DeviceExistIp(link netlink.Link) (string, error) {
@@ -641,6 +665,7 @@ func AddRoute(ipn *net.IPNet, gw net.IP, dev netlink.Link, scope ...netlink.Scop
 	if len(scope) > 0 {
 		defaultScope = scope[0]
 	}
+	log.Println(dev.Attrs().Index, defaultScope, ipn, gw)
 	return netlink.RouteAdd(&netlink.Route{
 		LinkIndex: dev.Attrs().Index,
 		Scope:     defaultScope,
@@ -693,7 +718,7 @@ func SetIptablesForToForwardAccept(link netlink.Link) error {
 		utils.WriteLog("这里 NewWithProtocol 失败, err: ", err.Error())
 		return err
 	}
-	err = ipt.Append("filter", "FORWARD", "-i", link.Attrs().Name, "-j", "ACCEPT")
+	err = ipt.AppendUnique("filter", "FORWARD", "-i", link.Attrs().Name, "-j", "ACCEPT")
 	if err != nil {
 		utils.WriteLog("这里 ipt.Append 失败, err: ", err.Error())
 		return err
@@ -707,87 +732,70 @@ func SetIptablesForDeviceToFarwordAccept(device *netlink.Device) error {
 		utils.WriteLog("这里 NewWithProtocol 失败, err: ", err.Error())
 		return err
 	}
-	err = ipt.Append("filter", "FORWARD", "-i", device.Attrs().Name, "-j", "ACCEPT")
+
+	err = ipt.AppendUnique("filter", "FORWARD", "-i", device.Attrs().Name, "-j", "ACCEPT")
 	if err != nil {
 		utils.WriteLog("这里 ipt.Append 失败, err: ", err.Error())
 		return err
 	}
+
 	return nil
 }
 
-func CreateBridgeAndCreateVethAndSetNetworkDeviceStatusAndSetVethMaster(
-	brName, gw, ifName, podIP string, mtu int, netns ns.NetNS,
-) error {
-	// 先创建网桥
-	br, err := CreateBridge(brName, gw, mtu)
-	if err != nil {
-		utils.WriteLog("创建网卡失败, err: ", err.Error())
-		return err
-	}
+func SetupVeth(netns ns.NetNS, br netlink.Link, mtu int, ifName string, podIP string, gateway net.IP) error {
+	hostIface := &current.Interface{}
+	err := netns.Do(func(hostNS ns.NetNS) error {
+		if link, err := netlink.LinkByName(ifName); err == nil {
+			ip.DelLinkByName(link.Attrs().Name)
+		}
 
-	err = netns.Do(func(hostNs ns.NetNS) error {
-		// 创建一对儿 veth 设备
-		containerVeth, hostVeth, err := CreateVethPair(ifName, mtu)
+		// 在容器网络空间创建虚拟网卡
+		hostVeth, containerVeth, err := ip.SetupVeth(ifName, mtu, "", hostNS)
 		if err != nil {
-			utils.WriteLog("创建 veth 失败, err: ", err.Error())
+			log.Println("111", err)
+			return err
+		}
+		hostIface.Name = hostVeth.Name
+
+		// set ip for container veth
+		conLink, err := netlink.LinkByName(containerVeth.Name)
+		if err != nil {
+			log.Println("222", err)
 			return err
 		}
 
-		// 把随机起名的 veth 那头放在主机上
-		err = SetVethNsFd(hostVeth, hostNs)
-		if err != nil {
-			utils.WriteLog("把 veth 设置到 ns 下失败: ", err.Error())
+		// 绑定Pod IP
+		if err := SetIpForVeth(conLink.Attrs().Name, podIP); err != nil {
+			log.Println("333", err)
 			return err
 		}
 
-		// 然后把要被放到 pod 中的那头 veth 塞上 podIP
-		err = SetIpForVeth(containerVeth.Name, podIP)
-		if err != nil {
-			utils.WriteLog("给 veth 设置 ip 失败, err: ", err.Error())
+		// 启动网卡
+		if err := netlink.LinkSetUp(conLink); err != nil {
+			log.Println("444", err)
 			return err
 		}
 
-		// 然后启动它
-		err = SetUpVeth(containerVeth)
-		if err != nil {
-			utils.WriteLog("启动 veth pair 失败, err: ", err.Error())
-			return err
-		}
-
-		// 启动之后给这个 netns 设置默认路由 以便让其他网段的包也能从 veth 走到网桥
-		gwNetIP, _, err := net.ParseCIDR(gw)
-		if err != nil {
-			utils.WriteLog("转换 gwip 失败, err:", err.Error())
-			return err
-		}
-
-		// 给 pod(net ns) 中加一个默认路由规则, 该规则让匹配了 0.0.0.0 的都走上边创建的那个 container veth
-		err = SetDefaultRouteToVeth(gwNetIP, containerVeth)
-		if err != nil {
-			utils.WriteLog("SetDefaultRouteToVeth 时出错, err: ", err.Error())
-			return err
-		}
-
-		hostNs.Do(func(_ ns.NetNS) error {
-			// 重新获取一次 host 上的 veth, 因为 hostVeth 发生了改变
-			_hostVeth, err := netlink.LinkByName(hostVeth.Attrs().Name)
-			hostVeth = _hostVeth.(*netlink.Veth)
-			if err != nil {
-				utils.WriteLog("重新获取 hostVeth 失败, err: ", err.Error())
+		if !gateway.Equal(net.ParseIP("0.0.0.0")) {
+			// 添加默认路径，网关即网桥的地址
+			if err := ip.AddDefaultRoute(gateway, conLink); err != nil {
+				log.Println("555", err)
 				return err
 			}
-			// 启动它
-			err = SetUpVeth(hostVeth)
+		}
+
+		hostNS.Do(func(netNS ns.NetNS) error {
+			// need to lookup hostVeth again as its index has changed during ns move
+			hostVeth, err := netlink.LinkByName(hostIface.Name)
 			if err != nil {
-				utils.WriteLog("启动 veth pair 失败, err: ", err.Error())
-				return err
+				log.Println("666", err)
+				return fmt.Errorf("failed to lookup %q: %v", hostIface.Name, err)
 			}
 
-			// 把它塞到网桥上
-			err = SetVethMaster(hostVeth, br)
-			if err != nil {
-				utils.WriteLog("挂载 veth 到网桥失败, err: ", err.Error())
-				return err
+			// 将虚拟网卡另一端绑定到网桥上
+			if err := netlink.LinkSetMaster(hostVeth, br); err != nil {
+				log.Println("777", err)
+				return fmt.Errorf("failed to connect %q to bridge %v: %v", hostVeth.Attrs().Name, br.Attrs().Name, err)
 			}
 
 			// 都完事儿之后理论上同一台主机下的俩 netns(pod) 就能通信了
@@ -795,17 +803,60 @@ func CreateBridgeAndCreateVethAndSetNetworkDeviceStatusAndSetVethMaster(
 			// 需要用 iptables 允许网桥做转发
 			err = SetIptablesForToForwardAccept(br)
 			if err != nil {
+				utils.WriteLog("xxxxxxxx", err.Error())
 				return err
 			}
-
 			return nil
 		})
+
+		log.Println("================")
 
 		return nil
 	})
 
+	return err
+}
+
+func CreateBridgeAndCreateVethAndSetNetworkDeviceStatusAndSetVethMaster(
+	brName, ifName string, brIP, podIP string, mtu int, netns ns.NetNS, gw string,
+) error {
+	// 先创建网桥
+	br, err := CreateBridge(brName, brIP, mtu)
 	if err != nil {
+		utils.WriteLog("创建网卡失败, err: ", err.Error())
 		return err
 	}
-	return nil
+
+	// 启动之后给这个 netns 设置默认路由 以便让其他网段的包也能从 veth 走到网桥
+	gwNetIP, _, err := net.ParseCIDR(gw)
+	if err != nil {
+		utils.WriteLog("转换 gwip 失败, err:", err.Error())
+		return err
+	}
+
+	err = SetupVeth(netns, br, mtu, ifName, podIP, gwNetIP)
+	return err
+}
+
+func GetInterfaceIpv4Addr(interfaceName string) (addr string, err error) {
+	var (
+		ief      *net.Interface
+		addrs    []net.Addr
+		ipv4Addr net.IP
+	)
+	if ief, err = net.InterfaceByName(interfaceName); err != nil { // get interface
+		return
+	}
+	if addrs, err = ief.Addrs(); err != nil { // get addresses
+		return
+	}
+	for _, addr := range addrs { // get ipv4 address
+		if ipv4Addr = addr.(*net.IPNet).IP.To4(); ipv4Addr != nil {
+			break
+		}
+	}
+	if ipv4Addr == nil {
+		return "", errors.New(fmt.Sprintf("interface %s don't have an ipv4 address\n", interfaceName))
+	}
+	return ipv4Addr.String(), nil
 }

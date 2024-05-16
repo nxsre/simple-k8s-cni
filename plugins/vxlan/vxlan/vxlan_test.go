@@ -1,8 +1,8 @@
 package vxlan
 
 import (
-	"testcni/cni"
-	"testcni/skel"
+	"github.com/nxsre/simple-k8s-cni/cni"
+	"github.com/nxsre/simple-k8s-cni/skel"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

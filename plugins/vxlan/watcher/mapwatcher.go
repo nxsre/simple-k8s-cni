@@ -2,11 +2,11 @@ package watcher
 
 import (
 	"fmt"
+	"github.com/nxsre/simple-k8s-cni/consts"
+	"github.com/nxsre/simple-k8s-cni/etcd"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"strconv"
-	"testcni/consts"
-	"testcni/etcd"
-	"testcni/ipam"
-	"testcni/utils"
 )
 
 func getAllInitPath(ipam *ipam.IpamService) (map[string]string, error) {

@@ -2,10 +2,10 @@ package watcher
 
 import (
 	"encoding/json"
+	"github.com/nxsre/simple-k8s-cni/etcd"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"os"
-	"testcni/etcd"
-	"testcni/ipam"
-	"testcni/utils"
 	"time"
 
 	"go.etcd.io/etcd/api/v3/mvccpb"

@@ -2,7 +2,7 @@ package cni
 
 import (
 	"errors"
-	"testcni/skel"
+	"github.com/nxsre/simple-k8s-cni/skel"
 	"testing"
 
 	// currentTypes "github.com/containernetworking/cni/pkg/types"

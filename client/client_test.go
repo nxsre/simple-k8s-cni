@@ -1,8 +1,8 @@
 package client
 
 import (
+	"github.com/nxsre/simple-k8s-cni/helper"
 	"os"
-	"testcni/helper"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

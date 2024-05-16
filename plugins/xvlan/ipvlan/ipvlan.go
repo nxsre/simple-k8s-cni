@@ -1,12 +1,12 @@
 package ipvlan
 
 import (
+	"github.com/nxsre/simple-k8s-cni/cni"
+	"github.com/nxsre/simple-k8s-cni/consts"
+	base "github.com/nxsre/simple-k8s-cni/plugins/xvlan/base"
+	"github.com/nxsre/simple-k8s-cni/skel"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"net"
-	"testcni/cni"
-	"testcni/consts"
-	base "testcni/plugins/xvlan/base"
-	"testcni/skel"
-	"testcni/utils"
 
 	types "github.com/containernetworking/cni/pkg/types/100"
 )

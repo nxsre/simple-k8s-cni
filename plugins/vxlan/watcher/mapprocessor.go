@@ -2,13 +2,13 @@ package watcher
 
 import (
 	"fmt"
+	"github.com/nxsre/simple-k8s-cni/consts"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	bpfmap "github.com/nxsre/simple-k8s-cni/plugins/vxlan/map"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"net/http"
 	"strconv"
 	"strings"
-	"testcni/consts"
-	"testcni/ipam"
-	bpfmap "testcni/plugins/vxlan/map"
-	"testcni/utils"
 
 	"go.etcd.io/etcd/api/v3/mvccpb"
 )

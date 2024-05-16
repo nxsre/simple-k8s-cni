@@ -2,10 +2,10 @@ package helper
 
 import (
 	"encoding/json"
-	"testcni/cni"
-	"testcni/consts"
-	"testcni/skel"
-	"testcni/utils"
+	"github.com/nxsre/simple-k8s-cni/cni"
+	"github.com/nxsre/simple-k8s-cni/consts"
+	"github.com/nxsre/simple-k8s-cni/skel"
+	"github.com/nxsre/simple-k8s-cni/utils"
 )
 
 func GetConfigs(args *skel.CmdArgs) *cni.PluginConf {

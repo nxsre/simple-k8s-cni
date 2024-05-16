@@ -1,13 +1,13 @@
 package hostgw
 
 import (
+	"github.com/nxsre/simple-k8s-cni/cni"
+	"github.com/nxsre/simple-k8s-cni/consts"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	"github.com/nxsre/simple-k8s-cni/nettools"
+	"github.com/nxsre/simple-k8s-cni/skel"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"net"
-	"testcni/cni"
-	"testcni/consts"
-	"testcni/ipam"
-	"testcni/nettools"
-	"testcni/skel"
-	"testcni/utils"
 
 	types "github.com/containernetworking/cni/pkg/types/100"
 	// "github.com/containernetworking/cni/pkg/types"
@@ -90,7 +90,7 @@ func (hostGW *HostGatewayCNI) Bootstrap(
 	 *		7. 设置主机的 iptables, 让所有来自 bridgeName 的流量都能做 forward(因为 docker 可能会自己设置 iptables 不让转发的规则)
 	 */
 
-	err = nettools.CreateBridgeAndCreateVethAndSetNetworkDeviceStatusAndSetVethMaster(bridgeName, gatewayWithMaskSegment, ifName, podIP, mtu, netns)
+	err = nettools.CreateBridgeAndCreateVethAndSetNetworkDeviceStatusAndSetVethMaster(bridgeName, ifName, gatewayWithMaskSegment, podIP, mtu, netns, "0.0.0.0/0")
 	if err != nil {
 		utils.WriteLog("执行创建网桥, 创建 veth 设备, 添加默认路由等操作失败, err: ", err.Error())
 		err = ipamClient.Release().IPs(podIP)

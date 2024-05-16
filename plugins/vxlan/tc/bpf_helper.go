@@ -2,7 +2,7 @@ package tc
 
 import (
 	"errors"
-	"testcni/consts"
+	"github.com/nxsre/simple-k8s-cni/consts"
 )
 
 type BPF_TC_DIRECT string

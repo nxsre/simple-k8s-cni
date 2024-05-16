@@ -2,10 +2,10 @@ package ipam
 
 import (
 	"fmt"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"net"
 	"os"
 	"strings"
-	"testcni/utils"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

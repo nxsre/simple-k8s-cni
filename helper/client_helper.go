@@ -3,9 +3,9 @@ package helper
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/nxsre/simple-k8s-cni/consts"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"io/ioutil"
-	"testcni/consts"
-	"testcni/utils"
 
 	"github.com/dlclark/regexp2"
 )

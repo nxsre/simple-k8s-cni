@@ -2,8 +2,8 @@ package bird
 
 import (
 	"fmt"
-	"testcni/ipam"
-	"testcni/utils"
+	"github.com/nxsre/simple-k8s-cni/ipam"
+	"github.com/nxsre/simple-k8s-cni/utils"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
